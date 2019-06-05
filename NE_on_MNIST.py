@@ -59,48 +59,66 @@ def evaluate_population(population, inputs, targets):
     return results
 
 
-def evolve(population, train_inputs, train_targets, mutation_rate=0.03,):
+def evolve(population, train_inputs, train_targets, mutation_rate=0.07, keep=10):
     """ First we apply the survival of the fittest principle """
     nets_and_results = list(zip(population, evaluate_population(population, train_inputs, train_targets)))
+    # sort in place
     nets_and_results.sort(key=lambda x: x[1], reverse = True)
-    del nets_and_results[2:]
-    # TODO: do not hardcode to a population size of 10
-    # bring the list back up to 10 elements
+
+    # since we sorted in place, new_nets is also sorted
+    new_nets = [i[0] for i in nets_and_results]
+
+    # get the size of the population to later repop it to the same size
+    size = len(new_nets)
+
+    # delete everything but the top 'keep' individuals
+    del new_nets[keep:]
+
+    # fill the population back up to 'size'
     filler = []
-    filler.append(copy.deepcopy(nets_and_results[0]))
-    filler.append(copy.deepcopy(nets_and_results[1]))
-    nets_and_results.extend(copy.deepcopy(filler))
-    nets_and_results.extend(copy.deepcopy(filler))
-    nets_and_results.extend(copy.deepcopy(filler))
-    nets_and_results.extend(copy.deepcopy(filler))
+    for i in range(keep):
+        filler.append(copy.deepcopy(new_nets[i]))
+
+    while len(new_nets) < size:
+        new_nets.extend(copy.deepcopy(filler))
 
     """ After that we mutate the fittest individuals """
-    for net_and_result in nets_and_results:
-        mutation_vector_fc1 = torch.zeros(net_and_result[0].fc1.weight.data.size())
+    # TODO: Write it, so it can be applied to any kind of neural network regardless of the layers
+    # Look up Idealo Code, something with Parameter()
+    for net in new_nets:
+        mutation_vector_fc1 = torch.zeros(net.fc1.weight.data.size())
         for item in mutation_vector_fc1:
             item.add_((numpy.random.normal(0.0000, 0.002) if numpy.random.random() < mutation_rate else 0))
-        net_and_result[0].fc1.weight.data = net_and_result[0].fc1.weight.data.add(mutation_vector_fc1)
+        net.fc1.weight.data = net.fc1.weight.data.add(mutation_vector_fc1)
 
-        mutation_vector_fc2 = torch.zeros(net_and_result[0].fc2.weight.data.size())
+        mutation_vector_fc2 = torch.zeros(net.fc2.weight.data.size())
         for item in mutation_vector_fc2:
             item.add_((numpy.random.normal(0.0000, 0.005) if numpy.random.random() < mutation_rate else 0))
-        net_and_result[0].fc2.weight.data = net_and_result[0].fc2.weight.data.add(mutation_vector_fc2)
+        net.fc2.weight.data = net.fc2.weight.data.add(mutation_vector_fc2)
 
-    new_population, _ = zip(*nets_and_results)
-    return new_population
+        mutation_vector_fc3 = torch.zeros(net.fc3.weight.data.size())
+        for item in mutation_vector_fc3:
+            item.add_((numpy.random.normal(0.0000, 0.008) if numpy.random.random() < mutation_rate else 0))
+        net.fc3.weight.data = net.fc3.weight.data.add(mutation_vector_fc3)
+
+    return new_nets
 
 
 def main():
+    number_of_generations = 200
+    size_of_population = 100
+    mutation_rate = 0.07
+    keep = 1
 
-    test_pop = nnPopulation(10)
-    train_inputs, train_targets = clean_input(datasheet_path="D:/workFolder/NeuroEvolution/mnist_dataset/mnist_train_100.txt")
-    validate_inputs, validate_targets = clean_input(datasheet_path="D:/workFolder/NeuroEvolution/mnist_dataset/mnist_test_10.txt")
-    number_of_generations = 100
+    test_pop = nnPopulation(size_of_population)
+    train_inputs, train_targets = clean_input(datasheet_path="D:/workFolder/NeuroEvolution/mnist_dataset/mnist_test_10.txt")
+    validate_inputs, validate_targets = clean_input(datasheet_path="D:/workFolder/NeuroEvolution/mnist_dataset/mnist_test.csv")
+
 
     print(evaluate_population(test_pop.population, train_inputs, train_targets))
     gen_i = test_pop.population # = gen_0 aka initial population
     for i in range(number_of_generations): # number of generations
-        gen_i = evolve(gen_i, train_inputs, train_targets)
+        gen_i = evolve(gen_i, train_inputs, train_targets, mutation_rate=mutation_rate, keep=keep)
         print(f"Gen{i + 1}: {sorted(evaluate_population(gen_i, train_inputs, train_targets), reverse = True)}")
 
         if i % 50 == 0 or i == number_of_generations - 1:
