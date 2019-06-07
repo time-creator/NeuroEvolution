@@ -44,6 +44,7 @@ class nnPopulation:
 
 
 def fitness(network, inputs, targets):
+    # best possible score 0.99
     score = 0
     for input, target in zip(inputs, targets):
         score += network.forward(input)[target].item()
@@ -59,24 +60,69 @@ def evaluate_population(population, inputs, targets):
     return results
 
 
-def evolve(population, train_inputs, train_targets, mutation_rate=0.07, keep=10):
+def getNextParents(nets_and_results, keep, type='roulette_wheel'):
+    # TODO: Add other types of selecting functions
+    # e.g. Elitism, Tournament Selection, SUS
+
+    # net_list should probably be a net and result list, since we need results too
+
+    # Methode for roulette wheel: fitness ranges from 0 to 0.99
+    # we take this score * 100 and turn it into an into
+    # each individual gets slices equal to that number
+    # then randomly select 'keep' many
+
+    parent_nets = []
+    net_list = [i[0] for i in nets_and_results]
+    # fitness_scores is sorted, since we get a sorted list as input
+    fitness_scores = [i[1] for i in nets_and_results]
+
+    if type == 'roulette_wheel':
+        roulette_wheel = []
+        list_counter = 0
+
+        for score in fitness_scores:
+            slices = int(score * 100)
+            for i in range(slices):
+                roulette_wheel.append(list_counter)
+            list_counter = list_counter + 1
+
+        print(roulette_wheel)
+
+        rnd.shuffle(roulette_wheel) # in place shuffle
+        for i in range(keep):
+            winner = rnd.randrange(len(roulette_wheel))
+            parent_nets.append(net_list[roulette_wheel[winner]])
+
+    return parent_nets
+
+# TODO: make getNextParents more general and give it type as argument
+# no if else needed afterwards
+def evolve(population, train_inputs, train_targets, mutation_rate=0.07, keep=10, type='top'):
     """ First we apply the survival of the fittest principle """
     nets_and_results = list(zip(population, evaluate_population(population, train_inputs, train_targets)))
     # sort in place
     nets_and_results.sort(key=lambda x: x[1], reverse = True)
 
-    # since we sorted in place, new_nets is also sorted
-    new_nets = [i[0] for i in nets_and_results]
+    if type == 'top':
+        # since we sorted in place, new_nets is also sorted
+        new_nets = [i[0] for i in nets_and_results]
 
-    # get the size of the population to later repop it to the same size
-    size = len(new_nets)
+        # get the size of the population to later repop it to the same size
+        size = len(new_nets)
 
-    # delete everything but the top 'keep' individuals
-    del new_nets[keep:]
+        # delete everything but the top 'keep' individuals
+        # TODO: Maybe use a "getFittest" function here to select the parents
+        del new_nets[keep:]
+
+    elif type == 'roulette':
+
+        new_nets = getNextParents(nets_and_results, keep=keep)
+        size = len(nets_and_results)
 
     # fill the population back up to 'size'
     filler = []
-    for i in range(keep):
+
+    for i in range(len(new_nets)): # before 'keep'
         filler.append(copy.deepcopy(new_nets[i]))
 
     while len(new_nets) < size:
@@ -105,13 +151,13 @@ def evolve(population, train_inputs, train_targets, mutation_rate=0.07, keep=10)
 
 
 def main():
-    number_of_generations = 200
-    size_of_population = 100
+    number_of_generations = 50
+    size_of_population = 10
     mutation_rate = 0.07
-    keep = 1
+    keep = 2
 
     test_pop = nnPopulation(size_of_population)
-    train_inputs, train_targets = clean_input(datasheet_path="D:/workFolder/NeuroEvolution/mnist_dataset/mnist_test_10.txt")
+    train_inputs, train_targets = clean_input(datasheet_path="D:/workFolder/NeuroEvolution/mnist_dataset/mnist_train_100.txt")
     validate_inputs, validate_targets = clean_input(datasheet_path="D:/workFolder/NeuroEvolution/mnist_dataset/mnist_test.csv")
 
 
@@ -121,7 +167,8 @@ def main():
         gen_i = evolve(gen_i, train_inputs, train_targets, mutation_rate=mutation_rate, keep=keep)
         print(f"Gen{i + 1}: {sorted(evaluate_population(gen_i, train_inputs, train_targets), reverse = True)}")
 
-        if i % 50 == 0 or i == number_of_generations - 1:
+        #if i % 50 == 0 or i == number_of_generations - 1:
+        if i == number_of_generations - 1: # on the last one also test on validate
             print(f"Last Gen on Validate: {sorted(evaluate_population(gen_i, validate_inputs, validate_targets), reverse = True)}")
 
 
