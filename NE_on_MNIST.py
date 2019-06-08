@@ -3,6 +3,7 @@ import torch
 import autoencoder as ae
 import random as rnd
 import copy
+import save_util as saveu
 
 # TODO: delete population class, instead just have list
 
@@ -134,42 +135,65 @@ def evolve(population, train_inputs, train_targets, mutation_rate=0.07, keep=10,
     for net in new_nets:
         mutation_vector_fc1 = torch.zeros(net.fc1.weight.data.size())
         for item in mutation_vector_fc1:
-            item.add_((numpy.random.normal(0.0000, 0.002) if numpy.random.random() < mutation_rate else 0))
+            item.add_((numpy.random.normal(0.0000, 0.004) if numpy.random.random() < mutation_rate else 0))
         net.fc1.weight.data = net.fc1.weight.data.add(mutation_vector_fc1)
 
         mutation_vector_fc2 = torch.zeros(net.fc2.weight.data.size())
         for item in mutation_vector_fc2:
-            item.add_((numpy.random.normal(0.0000, 0.005) if numpy.random.random() < mutation_rate else 0))
+            item.add_((numpy.random.normal(0.0000, 0.008) if numpy.random.random() < mutation_rate else 0))
         net.fc2.weight.data = net.fc2.weight.data.add(mutation_vector_fc2)
 
         mutation_vector_fc3 = torch.zeros(net.fc3.weight.data.size())
         for item in mutation_vector_fc3:
-            item.add_((numpy.random.normal(0.0000, 0.008) if numpy.random.random() < mutation_rate else 0))
+            item.add_((numpy.random.normal(0.0000, 0.012) if numpy.random.random() < mutation_rate else 0))
         net.fc3.weight.data = net.fc3.weight.data.add(mutation_vector_fc3)
 
     return new_nets
 
 
 def main():
-    number_of_generations = 50
-    size_of_population = 10
+    number_of_generations = 500
+    size_of_population = 50
     mutation_rate = 0.07
-    keep = 2
+    keep = 10
+    results = []
 
     test_pop = nnPopulation(size_of_population)
+    # training dataset
     train_inputs, train_targets = clean_input(datasheet_path="D:/workFolder/NeuroEvolution/mnist_dataset/mnist_train_100.txt")
+    # validation dataset
     validate_inputs, validate_targets = clean_input(datasheet_path="D:/workFolder/NeuroEvolution/mnist_dataset/mnist_test.csv")
 
-
-    print(evaluate_population(test_pop.population, train_inputs, train_targets))
     gen_i = test_pop.population # = gen_0 aka initial population
-    for i in range(number_of_generations): # number of generations
-        gen_i = evolve(gen_i, train_inputs, train_targets, mutation_rate=mutation_rate, keep=keep)
-        print(f"Gen{i + 1}: {sorted(evaluate_population(gen_i, train_inputs, train_targets), reverse = True)}")
+    for i in range(number_of_generations + 1): # number of generations
+        if i == 0:
+            # initial generation only has to get evaluated
+            gen_i_eval = sorted(evaluate_population(gen_i, train_inputs, train_targets), reverse = True)
+            print(f"Gen {i}: {gen_i_eval}")
+        else:
+            # we need to evolve first if it's not the initial generation
+            # the evolve turns the gen into the gen + 1 i.e. the new gen
+            gen_i = evolve(gen_i, train_inputs, train_targets, mutation_rate=mutation_rate, keep=keep)
 
-        #if i % 50 == 0 or i == number_of_generations - 1:
-        if i == number_of_generations - 1: # on the last one also test on validate
-            print(f"Last Gen on Validate: {sorted(evaluate_population(gen_i, validate_inputs, validate_targets), reverse = True)}")
+            gen_i_eval = sorted(evaluate_population(gen_i, train_inputs, train_targets), reverse = True)
+            print(f"Gen {i}: {gen_i_eval}")
+
+        gen_i_eval_result = [i]
+        gen_i_eval_result.extend(gen_i_eval)
+        results.append(gen_i_eval_result)
+
+        if i == number_of_generations: # gens to test on vali
+            gen_i_vali = sorted(evaluate_population(gen_i, validate_inputs, validate_targets), reverse = True)
+            print(f"Validation Gen {i}: {gen_i_vali}")
+
+            # TODO: add back later: gen_i_vali_result = [f'Validation Gen {i}']
+            gen_i_vali_result = [-1]
+            gen_i_vali_result.extend(gen_i_vali)
+            results.append(gen_i_vali_result)
+            # ..._result is the string ready to add, the non ..._result version is the actual result list
+
+    # save the results
+    saveu.save_results(results)
 
 
 if __name__ == '__main__':
