@@ -20,7 +20,8 @@ def save_results(results):
         header = [i for i in range(len(results[0]))]
         header[0] = 'Generation'
         header[1] = 'Best'
-        header[-1] = 'Worst'
+        header[-2] = 'Worst'
+        header[-1] = 'Average'
         csv_writer.writerow(header)
 
         # writerows iterates over results, since it's a list / iterable
