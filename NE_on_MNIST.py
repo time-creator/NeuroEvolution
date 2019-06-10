@@ -4,6 +4,7 @@ import autoencoder as ae
 import random as rnd
 import copy
 import save_util as saveu
+from statistics import mean
 
 # TODO: delete population class, instead just have list
 
@@ -152,10 +153,10 @@ def evolve(population, train_inputs, train_targets, mutation_rate=0.07, keep=10,
 
 
 def main():
-    number_of_generations = 500
-    size_of_population = 50
+    number_of_generations = 150
+    size_of_population = 10
     mutation_rate = 0.07
-    keep = 10
+    keep = 2
     results = []
 
     test_pop = nnPopulation(size_of_population)
@@ -178,8 +179,9 @@ def main():
             gen_i_eval = sorted(evaluate_population(gen_i, train_inputs, train_targets), reverse = True)
             print(f"Gen {i}: {gen_i_eval}")
 
-        gen_i_eval_result = [i]
-        gen_i_eval_result.extend(gen_i_eval)
+        gen_i_eval_result = [i] # Generation number
+        gen_i_eval_result.extend(gen_i_eval) # Fitness Scores (best to worst)
+        gen_i_eval_result.append(mean(gen_i_eval)) # Average
         results.append(gen_i_eval_result)
 
         if i == number_of_generations: # gens to test on vali
@@ -189,12 +191,15 @@ def main():
             # TODO: add back later: gen_i_vali_result = [f'Validation Gen {i}']
             gen_i_vali_result = [-1]
             gen_i_vali_result.extend(gen_i_vali)
+            gen_i_vali_result.append(mean(gen_i_vali))
             results.append(gen_i_vali_result)
             # ..._result is the string ready to add, the non ..._result version is the actual result list
 
     # save the results
     saveu.save_results(results)
 
+    # TODO: Save more information into the result
+    # e.g. Average, Information on mutation rate, pop size, keep, number of generations
 
 if __name__ == '__main__':
     main()
