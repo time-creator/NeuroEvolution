@@ -134,9 +134,23 @@ def evolve(population, train_inputs, train_targets, mutation_rate=0.07, keep=10,
     # TODO: Write it, so it can be applied to any kind of neural network regardless of the layers
     # Look up Idealo Code, something with Parameter()
     for net in new_nets:
+        #"""
+        delta_fc1 = numpy.random.randn(*net.fc1.weight.data.size()).astype(numpy.float32) * numpy.array(mutation_rate).astype(numpy.float32)
+        delta_fc1_tensor = torch.from_numpy(delta_fc1)
+        net.fc1.weight.data = net.fc1.weight.data.add(delta_fc1_tensor)
+
+        delta_fc2 = numpy.random.randn(*net.fc2.weight.data.size()).astype(numpy.float32) * numpy.array(mutation_rate).astype(numpy.float32)
+        delta_fc2_tensor = torch.from_numpy(delta_fc2)
+        net.fc2.weight.data = net.fc2.weight.data.add(delta_fc2_tensor)
+
+        delta_fc3 = numpy.random.randn(*net.fc3.weight.data.size()).astype(numpy.float32) * numpy.array(mutation_rate).astype(numpy.float32)
+        delta_fc3_tensor = torch.from_numpy(delta_fc3)
+        net.fc3.weight.data = net.fc3.weight.data.add(delta_fc3_tensor)
+
+        """
         mutation_vector_fc1 = torch.zeros(net.fc1.weight.data.size())
         for item in mutation_vector_fc1:
-            item.add_((numpy.random.normal(0.0000, 0.004) if numpy.random.random() < mutation_rate else 0))
+            item.add_((numpy.random.normal(0.0000, 0.008) if numpy.random.random() < mutation_rate else 0))
         net.fc1.weight.data = net.fc1.weight.data.add(mutation_vector_fc1)
 
         mutation_vector_fc2 = torch.zeros(net.fc2.weight.data.size())
@@ -148,14 +162,14 @@ def evolve(population, train_inputs, train_targets, mutation_rate=0.07, keep=10,
         for item in mutation_vector_fc3:
             item.add_((numpy.random.normal(0.0000, 0.012) if numpy.random.random() < mutation_rate else 0))
         net.fc3.weight.data = net.fc3.weight.data.add(mutation_vector_fc3)
-
+        """
     return new_nets
 
 
 def main():
-    number_of_generations = 150
+    number_of_generations = 1000
     size_of_population = 10
-    mutation_rate = 0.07
+    mutation_rate = 0.05
     keep = 2
     results = []
 
@@ -199,7 +213,7 @@ def main():
     saveu.save_results(results)
 
     # TODO: Save more information into the result
-    # e.g. Average, Information on mutation rate, pop size, keep, number of generations
+    # e.g. Information on mutation rate, pop size, keep, number of generations
 
 if __name__ == '__main__':
     main()
