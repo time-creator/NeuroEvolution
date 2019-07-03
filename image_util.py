@@ -53,8 +53,6 @@ def png2torchtensor(image_path, scale=True, flatten=False):
 
     return pixels_vector
 
-""" PIL """
-
 # creates a fancy grayscale image out of an image path
 def to_fancy_grayscale(image_path):
     im = Image.open(image_path)
@@ -95,6 +93,7 @@ def grayscale_image_to_list(image):
 
 # TODO: don't hardcode image size!
 def show_result_image(result_data, image_path):
+    rgb_vector = result_data
     im_new = Image.new(mode='RGB', size=(128, 128))
     im_original = Image.open(image_path)
     pixels_new = []
@@ -102,8 +101,8 @@ def show_result_image(result_data, image_path):
 
     for i in range(im_original.size[0]):
         for j in range(im_original.size[1]):
-            # have to do [j, i] to counter work the rotation from putdata()
-            grayscale_value = int(np.sum(np.multiply(list(pixels_original[j, i]), result_data[i * 128 + j])))
+            # have to do [j, i] to reverse the rotation from putdata()
+            grayscale_value = int(np.sum(np.multiply(list(pixels_original[j, i]), rgb_vector)))
             pixels_new.append((grayscale_value, grayscale_value, grayscale_value))
 
     im_new.putdata(pixels_new)

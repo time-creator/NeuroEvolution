@@ -7,6 +7,7 @@ import save_util as saveu
 import image_util as imageu
 from statistics import mean
 
+# TODO: move this function to save_util and change it to load and save util
 def generate_inputs():
     train_set = []
     validate_set = []
@@ -20,55 +21,24 @@ def generate_inputs():
 
     return train_set, validate_set
 
-def softmax(rgb_values):
-    return (numpy.exp(rgb_values) / numpy.sum(numpy.exp(rgb_values), axis=0)).tolist()
+def result_to_list(result):
+    return result.tolist()[0]
 
-# Returns a list of tuples with 3 entries each
-# These values will have to get softmaxed to represent percentage values of the
-# grayscale
-# TODO: change name
-def result_to_list(result, fast):
-    tuple_list = []
-    result_list = torch.squeeze(result)
-    result_list = torch.flatten(result_list, 1)
-    result_list = result_list.tolist()
-    r, g, b = result_list[0], result_list[1], result_list[2]
-    for red, green, blue in zip(r, g, b):
-        tuple_list.append(softmax([red, green, blue]))
-
-    if not fast:
-        print(r)
-        print(g)
-        print(b)
-        print(tuple_list)
-
-    return tuple_list if not fast else b
-
-# populates a population with a network type
+# populates a population with a network type and a given size
 def populate(population_size):
     population = []
     for i in range(population_size):
-        population.append(nws.ImageAutoencoderTwo())
+        population.append(nws.ImageCNN())
     return population
-
-# creates a new population
-class nnPopulation:
-
-    def __init__(self, population_size):
-        self.population_size = population_size
-        self.population = populate(population_size)
 
 
 def fitness(network, inputs):
     # for now: maximize the blue influence
-    # TODO: write this
     score = 0
     for input in inputs:
         result = network.forward(input)
-        result = result_to_list(result, True)
-        for value in result:
-            score += value
-        score /= 128 * 128
+        result = result_to_list(result)
+        score += result[1] # add the blue part
     score /= len(inputs)
 
     return score
@@ -81,7 +51,7 @@ def evaluate_population(population, inputs):
     return results
 
 
-def getNextParents(nets_and_results, keep, type='roulette_wheel'):
+def getNextParents(nets_and_results, keep, type):
     # TODO: Add other types of selecting functions
     # e.g. Elitism, Tournament Selection, SUS
 
@@ -114,42 +84,32 @@ def getNextParents(nets_and_results, keep, type='roulette_wheel'):
             winner = rnd.randrange(len(roulette_wheel))
             parent_nets.append(net_list[roulette_wheel[winner]])
 
+    elif type == 'top':
+        parent_nets = [i[0] for i in nets_and_results]
+        del parent_nets[keep:]
+
     return parent_nets
 
 # TODO: make getNextParents more general and give it type as argument
-# no if else needed afterwards
 def evolve(population, train_inputs, mutation_rate=0.07, keep=10, type='top'):
     """ First we apply the survival of the fittest principle """
     nets_and_results = list(zip(population, evaluate_population(population, train_inputs)))
-    # sort in place
     nets_and_results.sort(key=lambda x: x[1], reverse = True)
 
-    if type == 'top':
-        # since we sorted in place, new_nets is also sorted
-        new_nets = [i[0] for i in nets_and_results]
+    size = len(nets_and_results)
 
-        # get the size of the population to later repop it to the same size
-        size = len(new_nets)
+    new_nets = getNextParents(nets_and_results, keep=keep, type=type)
 
-        # delete everything but the top 'keep' individuals
-        # TODO: Maybe use a "getFittest" function here to select the parents
-        del new_nets[keep:]
-
-    elif type == 'roulette':
-
-        new_nets = getNextParents(nets_and_results, keep=keep)
-        size = len(nets_and_results)
-
-    # fill the population back up to 'size'
+    # fill the population back up to the old/original size
     filler = []
 
-    for i in range(len(new_nets)): # before 'keep'
+    for i in range(len(new_nets)):
         filler.append(copy.deepcopy(new_nets[i]))
 
     while len(new_nets) < size:
         new_nets.extend(copy.deepcopy(filler))
 
-    """ After that we mutate the fittest individuals """
+    """ After that we mutate the fittest individuals/new population """
     for net in new_nets:
 
         layers = net.get_layers()
@@ -159,7 +119,6 @@ def evolve(population, train_inputs, mutation_rate=0.07, keep=10, type='top'):
             delta = numpy.random.randn(*layer.weight.data.size()).astype(numpy.float32) * numpy.array(mutation_rate).astype(numpy.float32)
             delta_tensor = torch.from_numpy(delta)
             layer.weight.data = layer.weight.data.add(delta_tensor)
-    # Stop V2
 
     return new_nets
 
@@ -169,16 +128,18 @@ def main():
     size_of_population = 6
     mutation_rate = 0.05
     keep = 2
+    parent_selection_type = 'top'
     results = []
 
-    test_pop = nnPopulation(size_of_population)
+    population = populate(size_of_population)
 
     # training dataset, validation dataset
     train_inputs, validate_inputs = generate_inputs()
 
-    gen_i = test_pop.population # = gen_0 aka initial population
+    gen_i = population # = gen_0 aka initial population
 
     for i in range(number_of_generations + 1): # number of generations
+
         if i == 0:
             # initial generation only has to get evaluated
             gen_i_eval = sorted(evaluate_population(gen_i, train_inputs), reverse = True)
@@ -186,7 +147,7 @@ def main():
         else:
             # we need to evolve first if it's not the initial generation
             # the evolve turns the gen into the gen + 1 i.e. the new gen
-            gen_i = evolve(gen_i, train_inputs, mutation_rate=mutation_rate, keep=keep)
+            gen_i = evolve(gen_i, train_inputs, mutation_rate=mutation_rate, keep=keep, type=parent_selection_type)
 
             gen_i_eval = sorted(evaluate_population(gen_i, train_inputs), reverse = True)
             print(f"Gen {i}: {gen_i_eval}")
@@ -207,8 +168,10 @@ def main():
             results.append(gen_i_vali_result)
             # ..._result is the string ready to add, the non ..._result version is the actual result list
 
-            # Shows the resulting image / vector in image shape
-            imageu.show_result_image(result_to_list(gen_i[0].forward(validate_inputs[0]), False), 'D:/workFolder/NeuroEvolution/thumbnails/00010.png')
+            # shows the resulting image
+            imageu.show_result_image(result_to_list(gen_i[0].forward(validate_inputs[0])), 'D:/workFolder/NeuroEvolution/thumbnails/00010.png')
+            im_fancy = imageu.to_fancy_grayscale('D:/workFolder/NeuroEvolution/thumbnails/00010.png')
+            im_fancy.show()
 
     # save the results
     saveu.save_results(results)
