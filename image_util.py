@@ -1,6 +1,11 @@
 from PIL import Image
 import numpy as np
 import torch
+import os
+from pathlib import Path
+from datetime import datetime
+
+dir_path = os.path.dirname(os.path.realpath(__file__))
 
 # creates a pytorch tensor out of an image path
 # depending on the parameter flatten, the resulting vector either is of size
@@ -92,7 +97,7 @@ def grayscale_image_to_list(image):
 
 
 # TODO: don't hardcode image size!
-def show_result_image(result_data, image_path):
+def show_result_image(result_data, image_path, save=False):
     rgb_vector = result_data
     im_new = Image.new(mode='RGB', size=(128, 128))
     im_original = Image.open(image_path)
@@ -107,6 +112,10 @@ def show_result_image(result_data, image_path):
 
     im_new.putdata(pixels_new)
     im_new.show()
+
+    if save:
+        new_image_path = Path(dir_path + f"\\result_images\\image_{str(datetime.now())[:-7].replace(' ', '_').replace(':', '-')}.png")
+        im_new.save(new_image_path)
 
 def main():
 
