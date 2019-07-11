@@ -1,13 +1,12 @@
 import numpy
 import torch
 import networks as nws
-import random as rnd
 import copy
 import save_util as saveu
 import image_util as imageu
 from statistics import mean
 
-# TODO: move this function to save_util and change it to load and save util
+
 def generate_inputs():
     train_set = []
     validate_set = []
@@ -20,6 +19,7 @@ def generate_inputs():
         validate_set.append(imageu.png2torchtensor(f'D:/workFolder/NeuroEvolution/thumbnails/000{i}.png'))
 
     return train_set, validate_set
+
 
 def result_to_list(result):
     return result.tolist()[0]
@@ -38,7 +38,7 @@ def fitness(network, inputs):
     for input in inputs:
         result = network.forward(input)
         result = result_to_list(result)
-        score += result[1] # add the blue part
+        score += result[1] # add the blue part (0=R, 1=G, 2=B)
     score /= len(inputs)
 
     return score
@@ -50,50 +50,47 @@ def evaluate_population(population, inputs):
         results.append(fitness(network, inputs))
     return results
 
-
+# this methode returns the parents for the next generation in a list
 def getNextParents(nets_and_results, keep, type):
     # TODO: Add other types of selecting functions
     # e.g. Elitism, Tournament Selection, SUS
-
-    # net_list should probably be a net and result list, since we need results too
-
-    # Methode for roulette wheel: fitness ranges from 0 to 0.99
-    # we take this score * 100 and turn it into an into
-    # each individual gets slices equal to that number
-    # then randomly select 'keep' many
 
     parent_nets = []
     net_list = [i[0] for i in nets_and_results]
     # fitness_scores is sorted, since we get a sorted list as input
     fitness_scores = [i[1] for i in nets_and_results]
 
+    # TODO: What kind of distribution is needed?
     if type == 'roulette_wheel':
-        roulette_wheel = []
-        list_counter = 0
-
+        sum_fitness = 0
         for score in fitness_scores:
-            slices = int(score * 100)
-            for i in range(slices):
-                roulette_wheel.append(list_counter)
-            list_counter = list_counter + 1
-
-        print(roulette_wheel)
-
-        rnd.shuffle(roulette_wheel) # in place shuffle
+            sum_fitness += score
+        cumulative_fitness_scores = numpy.cumsum(fitness_scores)#.tolist()
         for i in range(keep):
-            winner = rnd.randrange(len(roulette_wheel))
-            parent_nets.append(net_list[roulette_wheel[winner]])
+            winner = sum_fitness * numpy.random.uniform(0, 1)
+            parent_nets.append(net_list[numpy.argmax(cumulative_fitness_scores > winner)])
 
-    elif type == 'top':
+    elif type == 'rank':
+        cumulative_rank = numpy.cumsum(list(range(1, len(net_list) + 1)))
+        pieces_per_rank = cumulative_rank[::-1]
+        cumulative_rank = numpy.cumsum(cumulative_rank[::-1])
+        for i in range(keep):
+            winner = numpy.random.randint(0, numpy.sum(pieces_per_rank))
+            parent_nets.append(net_list[numpy.argmax(cumulative_rank > winner)])
+
+    elif type == 'truncation':
         parent_nets = [i[0] for i in nets_and_results]
         del parent_nets[keep:]
 
+    else:
+        raise Exception("No method of parent selection was given.")
     return parent_nets
 
-# TODO: make getNextParents more general and give it type as argument
-def evolve(population, train_inputs, mutation_rate=0.07, keep=10, type='top'):
+
+def evolve(population, train_inputs, mutation_rate=0.07, keep=10, type='truncation'):
     """ First we apply the survival of the fittest principle """
     nets_and_results = list(zip(population, evaluate_population(population, train_inputs)))
+    # sort after fitness scores
     nets_and_results.sort(key=lambda x: x[1], reverse = True)
 
     size = len(nets_and_results)
@@ -128,7 +125,7 @@ def main():
     size_of_population = 6
     mutation_rate = 0.05
     keep = 2
-    parent_selection_type = 'top'
+    parent_selection_type = 'truncation'
     results = []
 
     population = populate(size_of_population)
@@ -168,8 +165,8 @@ def main():
             results.append(gen_i_vali_result)
             # ..._result is the string ready to add, the non ..._result version is the actual result list
 
-            # shows the resulting image
-            imageu.show_result_image(result_to_list(gen_i[0].forward(validate_inputs[0])), 'D:/workFolder/NeuroEvolution/thumbnails/00010.png')
+            # shows the resulting image and saves if it save=True
+            imageu.show_result_image(result_to_list(gen_i[0].forward(validate_inputs[0])), 'D:/workFolder/NeuroEvolution/thumbnails/00010.png', save=True)
             im_fancy = imageu.to_fancy_grayscale('D:/workFolder/NeuroEvolution/thumbnails/00010.png')
             im_fancy.show()
 
