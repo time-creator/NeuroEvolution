@@ -5,7 +5,7 @@ from pathlib import Path
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
-# path to the new results file
+# path and name of the new file
 new_csv_path = Path(dir_path + f"\\results\\results_{str(datetime.now())[:-7].replace(' ', '_').replace(':', '-')}.csv")
 
 def save_results(results):
