@@ -5,7 +5,7 @@ import numpy as np
 def main():
     # TODO: automate this
     # latest results, same as in save_util use the cwd path
-    data = pd.read_csv('D:/workFolder/NeuroEvolution/results/results_2019-06-09_15-45-00.csv')
+    data = pd.read_csv('csv_path')
 
     data.drop(data[data.Generation < 0].index, inplace=True)
 
