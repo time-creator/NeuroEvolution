@@ -1,10 +1,11 @@
 import numpy
 import torch
-import networks as nws
+import torch.nn as nn
 import copy
 import save_util as saveu
 import image_util as imageu
 import nima_util as nimau
+import squeezenet_util as squeezeu
 from statistics import mean
 from datetime import datetime
 
@@ -17,10 +18,10 @@ def generate_inputs():
     # paths to the images in the string
     # get input vectors from paths
     for i in range(1, 18):
-        train_set.append(imageu.to_network_vector(f'image_path'))
+        train_set.append(imageu.to_squeezenet_vector(f'image_path'))
 
     for i in range(18, 22):
-        validate_set.append(imageu.to_network_vector(f'image_path'))
+        validate_set.append(imageu.to_squeezenet_vector(f'image_path'))
 
     return train_set, validate_set
 
@@ -28,26 +29,23 @@ def generate_inputs():
 def result_to_list(result):
     return result.tolist()[0]
 
-# populates a population with a network type and a given size
+# populates a population with final_conv layers
 def populate(population_size):
     population = []
     for i in range(population_size):
-        population.append(nws.NIMACNN())
+        population.append(nn.Conv2d(512, 3, kernel_size=1))
     return population
 
 
 # this function takes the longest (the more pictures the longer)
-def fitness(network, inputs):
+def fitness(finalconv, inputs):
     # for now: maximize the blue influence
     score = 0
     rgbs = []
     scores = []
 
-    # rgbs will end up as list of lists of rgb percentages
-    for input in inputs:
-        result = network.forward(input)
-        result = result_to_list(result)
-        rgbs.append(result)
+    # TODO: missing network -> final_conv now
+    rgbs = squeezeu.run_and_get_values(finalconv, inputs)
 
     # nima_vectors is a list of all input images in grayscale in nima input size
     nima_vectors = []
@@ -62,19 +60,19 @@ def fitness(network, inputs):
 
 def evaluate_population(population, inputs):
     results = []
-    for network in population:
-        results.append((network, fitness(network, inputs)))
+    for individual in population:
+        results.append((individual, fitness(individual, inputs)))
     return results
 
 # this methode returns the parents for the next generation in a list
-def getNextParents(nets_and_results, keep, type):
+def getNextParents(finalconvs_and_results, keep, type):
     # TODO: Add other types of selecting functions
     # e.g. Elitism, Tournament Selection, SUS
 
     parent_nets = []
-    net_list = [i[0] for i in nets_and_results]
+    finalconvs_list = [i[0] for i in finalconvs_and_results]
     # fitness_scores is sorted, since we get a sorted list as input
-    fitness_scores = [i[1] for i in nets_and_results]
+    fitness_scores = [i[1] for i in finalconvs_and_results]
 
     # TODO: What kind of distribution is needed?
     if type == 'roulette_wheel':
@@ -84,18 +82,18 @@ def getNextParents(nets_and_results, keep, type):
         cumulative_fitness_scores = numpy.cumsum(fitness_scores)#.tolist()
         for i in range(keep):
             winner = sum_fitness * numpy.random.uniform(0, 1)
-            parent_nets.append(net_list[numpy.argmax(cumulative_fitness_scores > winner)])
+            parent_nets.append(finalconvs_list[numpy.argmax(cumulative_fitness_scores > winner)])
 
     elif type == 'rank':
-        cumulative_rank = numpy.cumsum(list(range(1, len(net_list) + 1)))
+        cumulative_rank = numpy.cumsum(list(range(1, len(finalconvs_list) + 1)))
         pieces_per_rank = cumulative_rank[::-1]
         cumulative_rank = numpy.cumsum(cumulative_rank[::-1])
         for i in range(keep):
             winner = numpy.random.randint(0, numpy.sum(pieces_per_rank))
-            parent_nets.append(net_list[numpy.argmax(cumulative_rank > winner)])
+            parent_nets.append(finalconvs_list[numpy.argmax(cumulative_rank > winner)])
 
     elif type == 'truncation':
-        parent_nets = [i[0] for i in nets_and_results]
+        parent_nets = [i[0] for i in finalconvs_and_results]
         del parent_nets[keep:]
 
     else:
@@ -105,35 +103,30 @@ def getNextParents(nets_and_results, keep, type):
 
 def evolve(population_and_results, mutation_rate=0.07, keep=10, type='truncation'):
     """ First we apply the survival of the fittest principle """
-    nets_and_results = population_and_results
+    finalconvs_and_results = population_and_results
     # sort after fitness scores
-    nets_and_results.sort(key=lambda x: x[1], reverse = True)
+    finalconvs_and_results.sort(key=lambda x: x[1], reverse = True)
 
-    size = len(nets_and_results)
+    size = len(finalconvs_and_results)
 
-    new_nets = getNextParents(nets_and_results, keep=keep, type=type)
+    new_finalconvs = getNextParents(finalconvs_and_results, keep=keep, type=type)
 
     # fill the population back up to the old/original size
     filler = []
 
-    for i in range(len(new_nets)):
-        filler.append(copy.deepcopy(new_nets[i]))
+    for i in range(len(new_finalconvs)):
+        filler.append(copy.deepcopy(new_finalconvs[i]))
 
-    while len(new_nets) < size:
-        new_nets.extend(copy.deepcopy(filler))
+    while len(new_finalconvs) < size:
+        new_finalconvs.extend(copy.deepcopy(filler))
 
     """ After that we mutate the fittest individuals/new population """
-    for net in new_nets:
+    for convlayer in new_finalconvs:
+        delta = numpy.random.randn(*convlayer.weight.data.size()).astype(numpy.float32) * numpy.array(mutation_rate).astype(numpy.float32)
+        delta_tensor = torch.from_numpy(delta)
+        convlayer.weight.data = convlayer.weight.data.add(delta_tensor)
 
-        layers = net.get_layers()
-
-        for layer in layers:
-
-            delta = numpy.random.randn(*layer.weight.data.size()).astype(numpy.float32) * numpy.array(mutation_rate).astype(numpy.float32)
-            delta_tensor = torch.from_numpy(delta)
-            layer.weight.data = layer.weight.data.add(delta_tensor)
-
-    return new_nets
+    return new_finalconvs
 
 
 def main():

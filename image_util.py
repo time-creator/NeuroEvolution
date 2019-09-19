@@ -8,58 +8,6 @@ import torchvision.transforms as transforms
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
-# creates a pytorch tensor out of an image path
-# depending on the parameter flatten, the resulting vector either is of size
-# 3 * image height * image width or 1 * (image height * image width)
-# actually it's 0 * 3 * .. because we need a batch size for further processing
-def png2torchtensor(image_path, scale=True, flatten=False):
-    im = Image.open(image_path)
-    im = im.resize((128, 128))
-    pixels = im.load()
-    pixels_vector = []
-    r_vector = []
-    g_vector = []
-    b_vector = []
-
-    for i in range(im.size[0]):
-        for j in range(im.size[1]):
-            for k in range(len(pixels[i, j])): # 0, 1, 2
-
-                if flatten:
-                    if scale:
-                        pixels_vector.append((k / 255) * 0.99 + 0.01)
-                    else:
-                        pixels_vector.append(k)
-                else:
-                    if k == 0:
-                        if scale:
-                            r_vector.append((k / 255) * 0.99 + 0.01)
-                        else:
-                            r_vector.append(k)
-                    elif k == 1:
-                        if scale:
-                            g_vector.append((k / 255) * 0.99 + 0.01)
-                        else:
-                            g_vector.append(k)
-                    else:
-                        if scale:
-                            b_vector.append((k / 255) * 0.99 + 0.01)
-                        else:
-                            b_vector.append(k)
-
-    if flatten:
-        pixels_vector = torch.tensor(pixels_vector).float()
-    else:
-        r_vector = torch.reshape(torch.tensor(r_vector).float(), (im.size[0], im.size[1]))
-        g_vector = torch.reshape(torch.tensor(g_vector).float(), (im.size[0], im.size[1]))
-        b_vector = torch.reshape(torch.tensor(b_vector).float(), (im.size[0], im.size[1]))
-
-        # stack along which axis; 0 right now
-        pixel_tensor = torch.stack((r_vector, g_vector, b_vector), dim=0)
-        pixels_vector = pixel_tensor.unsqueeze_(0)
-    print(pixels_vector.size())
-    return pixels_vector
-
 # creates a fancy grayscale image out of an image path
 def to_fancy_grayscale(image_path):
     im = Image.open(image_path)
@@ -111,7 +59,7 @@ def to_lightness_grayscale(image_path):
     im.save(new_image_path)
 
 # transforms a jpg image into an pytorch tensor, ready for use in the model
-# 224 is size of evo net and nima net
+# 224 is size of evo net and nima net (evo = squeezenet now)
 def to_nima_vector(image_path, is_im=False):
     if is_im:
         im = image_path
@@ -123,10 +71,6 @@ def to_nima_vector(image_path, is_im=False):
     im_tensor = tensor_maker.__call__(pic = im)
     im_tensor = im_tensor.unsqueeze_(0)
     return im_tensor
-
-# 224 is the needed size for the NIMACNN (hardcoded in to_nima_vector)
-def to_network_vector(image_path):
-    return to_nima_vector(image_path)
 
 # makes a network vector to be grayscale for nima to evaluate
 def network_and_rgb_to_nima_vector(network_vector, rgb_vector):
@@ -170,10 +114,24 @@ def rgb_vector_to_PIL_image(rgb_vector, image_path):
     im_new.show()
     return im_new
 
-def main():
+# from sample execution https://pytorch.org/hub/pytorch_vision_squeezenet/
+def to_squeezenet_vector(image_path):
+    input_image = Image.open(image_path)
+    preprocess = transforms.Compose([
+        transforms.Resize(256),
+        transforms.CenterCrop(224),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+    ])
+    input_tensor = preprocess(input_image)
+    input_batch = input_tensor.unsqueeze(0)
+    return input_batch
 
-    # fill in image path
-    print(network_and_rgb_to_nima_vector(to_network_vector('image_path'), [0.33, 0.34, 0.33]).size())
+def main():
+    """
+    im_fancy = to_fancy_grayscale('image_path')
+    im_fancy.show()
+    """
 
 if __name__ == '__main__':
     main()
