@@ -8,8 +8,17 @@ import torchvision.transforms as transforms
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
-# creates a fancy grayscale image out of an image path
 def to_fancy_grayscale(image_path):
+    """
+    Creates a grayscale image out of a given path to an image.
+    The grayscaling uses the luma / luminance method.
+
+    Args:
+        image_path: path to the image.
+
+    Returns:
+        Grayscale version of the given image as PIL Image.
+    """
     im = Image.open(image_path)
     pixels = im.load()
 
@@ -20,8 +29,17 @@ def to_fancy_grayscale(image_path):
 
     return im
 
-# creates a grayscale image out of an image path
 def to_simple_grayscale(image_path):
+    """
+    Creates a grayscale image out of a given path to an image.
+    The grayscaling uses the averaging method.
+
+    Args:
+        image_path: path to the image.
+
+    Returns:
+        Grayscale version of the given image as PIL Image.
+    """
     im = Image.open(image_path)
     pixels = im.load()
 
@@ -32,35 +50,58 @@ def to_simple_grayscale(image_path):
 
     return im
 
-# creates a greyscale image out of the given image with the given values
-# this function always saves the result image
 def to_selfmade_grayscale(image_path, r_value, g_value, b_value):
+    """
+    Creates a grayscale image out of a given path to an image.
+    The grayscaling uses the given weights to calculate the grayscale value.
+    The resulting image gets saved.
+
+    Args:
+        image_path: path to the image.
+        r_value: weight for red.
+        g_value: weight for green.
+        b_value: weight for blue.
+    """
     im = Image.open(image_path)
     pixels = im.load()
-    print(im.size[0], im.size[1])
     for i in range(im.size[0]):
         for j in range(im.size[1]):
             grayscale_value = int(np.sum(np.multiply(list(pixels[i, j]), [r_value, g_value, b_value])))
             pixels[i, j] = (grayscale_value, grayscale_value, grayscale_value)
-    print("Or got here")
     new_image_path = Path(dir_path + f"\\result_images\\a0096_{int(r_value * 1000)}_{int(g_value * 1000)}_{int(b_value * 1000)}.jpg")
     im.save(new_image_path)
 
 def to_lightness_grayscale(image_path):
+    """
+    Creates a grayscale image out of a given path to an image.
+    The grayscaling uses the lightness method.
+    The result gets saved.
+
+    Args:
+        image_path: path to the image.
+    """
     im = Image.open(image_path)
     pixels = im.load()
-    print(im.size[0], im.size[1])
     for i in range(im.size[0]):
         for j in range(im.size[1]):
             grayscale_value = int((max(pixels[i, j]) + min(pixels[i, j])) / 2)
             pixels[i, j] = (grayscale_value, grayscale_value, grayscale_value)
-    print("Or got here")
     new_image_path = Path(dir_path + f"\\result_images\\a0096_lightness.jpg")
     im.save(new_image_path)
 
-# transforms a jpg image into an pytorch tensor, ready for use in the model
 # 224 is size of evo net and nima net (evo = squeezenet now)
 def to_nima_vector(image_path, is_im=False):
+    """
+    Transforms a given .jpeg/.jpg image into a pytorch tensor ready for use in
+    the differenct components of this project.
+
+    Args:
+        image_path: Path to the image that gets converted.
+        is_im: Set to true if image_path is not a path but a PIL Image
+
+    Returns:
+        Returns a pytorch tensor.
+    """
     if is_im:
         im = image_path
     else:
@@ -72,8 +113,22 @@ def to_nima_vector(image_path, is_im=False):
     im_tensor = im_tensor.unsqueeze_(0)
     return im_tensor
 
-# makes a network vector to be grayscale for nima to evaluate
 def network_and_rgb_to_nima_vector(network_vector, rgb_vector):
+    """
+    This function takes in a pytorch tensor, fit to be used in this project, and
+    a RGB vector to calculate the resulting grayscale tensor. The resulting
+    vector can be used as input for the NIMA model.
+
+    Args:
+        network_vector: A pytorch tensor of size 1 x 3 x 224 x 224.
+        rgb_vector: A 3-element list where the first element represents the
+            red_vector part, the second green and the third blue.
+
+    Returns:
+        The return value is a pytorch tensor of size 1 x 3 x 224 x 224 that is
+        equal to the image represented by the network_vector converted to
+        grayscale (using the rgb_vector elements as weights) as tensor.
+    """
     # results in 3 x 224 x 224 tensor
     base_vector = torch.unbind(network_vector, 0)[0]
     red = rgb_vector[0]
@@ -100,6 +155,16 @@ def network_and_rgb_to_nima_vector(network_vector, rgb_vector):
     return torch.unsqueeze(grayscale_vector, 0)
 
 def rgb_vector_to_PIL_image(rgb_vector, image_path):
+    """
+    Turns an image into a grayscale PIL image using the given weights.
+
+    Args:
+        rgb_vector: List with the red, green and blue percentages.
+        image_path: Path to the image.
+
+    Returns:
+        Returns a PIL Image of the grayscale original image.
+    """
     im_original = Image.open(image_path)
     im_new = Image.new(mode='RGB', size=im_original.size)
     pixels_new = []
@@ -114,8 +179,18 @@ def rgb_vector_to_PIL_image(rgb_vector, image_path):
     im_new.show()
     return im_new
 
-# from sample execution https://pytorch.org/hub/pytorch_vision_squeezenet/
 def to_squeezenet_vector(image_path):
+    """
+    Turns an image into a pytorch tensor ready for use in the pytorch
+    squeezenet1_1 implementation.
+    From sample execution https://pytorch.org/hub/pytorch_vision_squeezenet/
+
+    Args:
+        image_path: Path to the image that will get converted.
+
+    Returns:
+        Returns a pytorch tensor that can be used as input for squeezenet1_1
+    """
     input_image = Image.open(image_path)
     preprocess = transforms.Compose([
         transforms.Resize(256),
@@ -128,10 +203,7 @@ def to_squeezenet_vector(image_path):
     return input_batch
 
 def main():
-    """
-    im_fancy = to_fancy_grayscale('image_path')
-    im_fancy.show()
-    """
+    print("Nothing to run in main().")
 
 if __name__ == '__main__':
     main()

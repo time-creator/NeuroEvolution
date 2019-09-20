@@ -18,13 +18,22 @@ model = NIMA(base_model)
 device = torch.device("cpu")
 
 # path to where the epoch-57.pkl file is located (Pretrained model download)
-model.load_state_dict(torch.load(os.path.join("/weights", "epoch-57.pkl"), map_location=device))
+model.load_state_dict(torch.load(os.path.join("path_to/weights", "epoch-57.pkl"), map_location=device))
 
 model.eval()
 
-# input is a list of vectors, each of them must already have the right size
-# to be used in the nima module (to be found in image_util - to_nima_vector)
 def evaluate_images(vector_list):
+    """
+    This function evaluates a given list of images using NIMA.
+
+    Args:
+        vector_list: List of images in pytorch tensor format. Must be of size to
+            be used as NIMA model inputs.
+
+    Return:
+        Returns the mean value and standard diviation provided by the NIMA
+        model.
+    """
     mean_preds = []
     std_preds = []
     for vector in vector_list:
@@ -39,11 +48,10 @@ def evaluate_images(vector_list):
         std_preds.append(predicted_std.item())
     return mean_preds, std_preds
 
-
 def main():
     # testing on a single image
     # path to image that will get evaluated
-    im = Image.open("D:/workFolder/NeuroEvolution/images/a0040.jpg")
+    im = Image.open("image_path")
     # only works with resized to 224 images
     resize_maker = transforms.Resize((224, 224))
     im = resize_maker.__call__(img = im)
@@ -67,7 +75,6 @@ def main():
     mean_preds.append(predicted_mean.item())
     std_preds.append(predicted_std.item())
     print(mean_preds, std_preds)
-
 
 if __name__ == '__main__':
     main()

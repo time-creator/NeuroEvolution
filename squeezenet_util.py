@@ -41,6 +41,17 @@ def main():
     print(torch.nn.functional.softmax(output[0], dim=0))
 
 def run_and_get_values(final_conv, images):
+    """
+    Args:
+        final_conv: A pytorch Conv2D layer to be used as final_conv layer in the
+            squeezenet1_1 model.
+        images: List of images in pytorch tensor format. Used as inputs for the
+            squeezenet1_1 model.
+
+    Return:
+        Returns a list of lists. Each sub-list containing predicted RBG values
+        to the respective input image.
+    """
     output = []
 
     # TODO: is this following line possible or do I have to init a squeeze net
