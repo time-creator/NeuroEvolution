@@ -11,40 +11,66 @@ from datetime import datetime
 
 
 def generate_inputs():
+    """
+    Generates the inputs (train and validation set) for the project pipelin out
+    of the given image paths.
+
+    Returns:
+        Returns two lists containing the given images as pytorch vectors ready
+        to use as inputs in squeezenet1_1.
+        train_set: Training dataset.
+        validate_set: Validation dataset.
+    """
     train_set = []
     validate_set = []
 
-    # generate the training and validation dataset
     # paths to the images in the string
-    # get input vectors from paths
-    for i in range(1, 18):
+    for i in range(5, 22):
         train_set.append(imageu.to_squeezenet_vector(f'image_path'))
 
-    for i in range(18, 22):
+    for i in range(1, 5):
         validate_set.append(imageu.to_squeezenet_vector(f'image_path'))
 
     return train_set, validate_set
 
-
 def result_to_list(result):
     return result.tolist()[0]
 
-# populates a population with final_conv layers
 def populate(population_size):
+    """
+    Generates a population_size big population for the evolutionary algorithm.
+
+    Args:
+        population_size: Size of the created population.
+
+    Returns:
+        Returns the population as a list of pytorch Conv2D layers.
+    """
     population = []
     for i in range(population_size):
         population.append(nn.Conv2d(512, 3, kernel_size=1))
     return population
 
-
 # this function takes the longest (the more pictures the longer)
 def fitness(finalconv, inputs):
-    # for now: maximize the blue influence
+    """
+    This function calculates the fitness to a given individual of the current
+    population in regard to the given inputs. It uses NIMA to calculate the
+    final fitness score.
+
+    Args:
+        finalconv: Individual of the current generation. A pytorch Conv2D layer
+            of size fit to the squeezenet1_1 final_conv layer.
+        inputs: List of pytorch vectors individually used as inputs for
+            squeezenet1_1.
+
+    Return:
+        Returns the fitness score calculated by the NIMA model (range 1 to 10).
+    """
     score = 0
     rgbs = []
     scores = []
 
-    # TODO: missing network -> final_conv now
     rgbs = squeezeu.run_and_get_values(finalconv, inputs)
 
     # nima_vectors is a list of all input images in grayscale in nima input size
@@ -57,15 +83,38 @@ def fitness(finalconv, inputs):
     score = mean(scores)
     return score
 
-
 def evaluate_population(population, inputs):
+    """
+    Evaluates the current population.
+
+    Args:
+        population: List of individuals.
+        inputs: List of pytorch vectors individually used as inputs for
+            squeezenet1_1.
+
+    Return:
+        Returns a list of tupels. Each tupel contains the individual at index 0
+        and the fitness score at index 1.
+    """
     results = []
     for individual in population:
         results.append((individual, fitness(individual, inputs)))
     return results
 
-# this methode returns the parents for the next generation in a list
 def getNextParents(finalconvs_and_results, keep, type):
+    """
+    This function chooses the parents for the next generation according the
+    given selection method.
+
+    Args:
+        finalconvs_and_results: List of individuals and respective fitness
+            scores.
+        keep: Number of individuals to be kept for the next generation.
+        type: Selection method.
+
+    Returns:
+        Returns the parents for the next generation as a list.
+    """
     # TODO: Add other types of selecting functions
     # e.g. Elitism, Tournament Selection, SUS
 
@@ -100,8 +149,20 @@ def getNextParents(finalconvs_and_results, keep, type):
         raise Exception("No method of parent selection was given.")
     return parent_nets
 
-
 def evolve(population_and_results, mutation_rate=0.07, keep=10, type='truncation'):
+    """
+    This function evolves a given population to a new one.
+
+    Args:
+        population_and_results: List of tupels each containing an individual and
+            its result.
+        mutation_rate: Mutation base value.
+        keep: Individuals to keep in the process for the next generation.
+        type: Selection method.
+
+    Return:
+        Returns a new generation of pytorch Conv2D layers as a list.
+    """
     """ First we apply the survival of the fittest principle """
     finalconvs_and_results = population_and_results
     # sort after fitness scores
@@ -128,7 +189,6 @@ def evolve(population_and_results, mutation_rate=0.07, keep=10, type='truncation
 
     return new_finalconvs
 
-
 def main():
     # TODO: keep has to be a divider of size_of_population! Rework this (probably)
     """
@@ -140,7 +200,7 @@ def main():
     keep: number of individuals kept as parents for the next generation
     parent_selection_type: way of selecting parents
     """
-    number_of_generations = 1
+    number_of_generations = 10
     size_of_population = 4
     mutation_rate = 0.05
     keep = 2
