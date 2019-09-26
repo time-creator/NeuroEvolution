@@ -17,14 +17,14 @@ def main():
     # Replace the fully-connected last part https://pytorch.org/docs/stable/_modules/torchvision/models/squeezenet.html
     final_conv = nn.Conv2d(512, 3, kernel_size=1)
     squeezynet.classifier = nn.Sequential(
-                nn.Dropout(p=0.5),
+                #nn.Dropout(p=0.5),
                 final_conv,
                 nn.ReLU(inplace=True),
                 nn.AdaptiveAvgPool2d((1, 1))
             )
 
     # sample execution https://pytorch.org/hub/pytorch_vision_squeezenet/
-    input_image = Image.open('image_path')
+    input_image = Image.open('path to image')
     preprocess = transforms.Compose([
         transforms.Resize(256),
         transforms.CenterCrop(224),
@@ -56,7 +56,7 @@ def run_and_get_values(final_conv, images):
 
     # TODO: is this following line possible or do I have to init a squeeze net
     squeezynet.classifier = nn.Sequential(
-                nn.Dropout(p=0.5),
+                #nn.Dropout(p=0.5),
                 final_conv,
                 nn.ReLU(inplace=True),
                 nn.AdaptiveAvgPool2d((1, 1))

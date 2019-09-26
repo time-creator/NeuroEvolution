@@ -25,11 +25,11 @@ def generate_inputs():
     validate_set = []
 
     # paths to the images in the string
-    for i in range(5, 22):
-        train_set.append(imageu.to_squeezenet_vector(f'image_path'))
+    for i in range(5, 22): # 5, 22
+        train_set.append(imageu.to_squeezenet_vector(f'path to images'))
 
-    for i in range(1, 5):
-        validate_set.append(imageu.to_squeezenet_vector(f'image_path'))
+    for i in range(1, 5): # 1, 5
+        validate_set.append(imageu.to_squeezenet_vector(f'path to images'))
 
     return train_set, validate_set
 
@@ -200,12 +200,17 @@ def main():
     keep: number of individuals kept as parents for the next generation
     parent_selection_type: way of selecting parents
     """
-    number_of_generations = 10
-    size_of_population = 4
+    load_generation = 0
+
+    number_of_generations = 20
+    size_of_population = 10
     mutation_rate = 0.05
     keep = 2
     parent_selection_type = 'truncation'
     results = []
+
+    total_generations = number_of_generations + load_generation
+    save_generation = total_generations
 
     population = populate(size_of_population)
 
@@ -214,13 +219,15 @@ def main():
     train_inputs, validate_inputs = generate_inputs()
 
     gen_i = population # = gen_0 aka initial population
+    if load_generation > 0:
+        gen_i = saveu.load_generation(load_generation, size_of_population)
     # following two could be in loop
     gen_i_eval = []
     gen_i_fitness_list = []
 
-    for i in range(number_of_generations + 1): # number of generations + initial pop
+    for i in range(total_generations + 1): # number of generations + initial pop
 
-        if i == 0:
+        if i == load_generation:
             # initial generation only has to get evaluated
             gen_i_eval = evaluate_population(gen_i, train_inputs)
             gen_i_fitness_list = sorted([x[1] for x in gen_i_eval], reverse=True)
@@ -239,7 +246,10 @@ def main():
         gen_i_eval_result.append(mean(gen_i_fitness_list)) # Average
         results.append(gen_i_eval_result)
 
-        if i == number_of_generations: # gens to test on vali
+        if i == save_generation:
+            saveu.save_generation(gen_i, i)
+
+        if i == total_generations: # gens to test on vali
             gen_i_vali_eval = evaluate_population(gen_i, validate_inputs)
             gen_i_vali_fitness_list = sorted([x[1] for x in gen_i_vali_eval], reverse=True)
             print(f"Validation Gen {i}: {gen_i_vali_fitness_list}")

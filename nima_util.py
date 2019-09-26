@@ -18,7 +18,7 @@ model = NIMA(base_model)
 device = torch.device("cpu")
 
 # path to where the epoch-57.pkl file is located (Pretrained model download)
-model.load_state_dict(torch.load(os.path.join("path_to/weights", "epoch-57.pkl"), map_location=device))
+model.load_state_dict(torch.load(os.path.join("path to weights/weights", "epoch-57.pkl"), map_location=device))
 
 model.eval()
 
@@ -51,7 +51,7 @@ def evaluate_images(vector_list):
 def main():
     # testing on a single image
     # path to image that will get evaluated
-    im = Image.open("image_path")
+    im = Image.open("path to image")
     # only works with resized to 224 images
     resize_maker = transforms.Resize((224, 224))
     im = resize_maker.__call__(img = im)

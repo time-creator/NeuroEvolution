@@ -131,6 +131,7 @@ def network_and_rgb_to_nima_vector(network_vector, rgb_vector):
     """
     # results in 3 x 224 x 224 tensor
     base_vector = torch.unbind(network_vector, 0)[0]
+    # red, green and blue are still tensors
     red = rgb_vector[0]
     green = rgb_vector[1]
     blue = rgb_vector[2]
@@ -176,7 +177,7 @@ def rgb_vector_to_PIL_image(rgb_vector, image_path):
             pixels_new.append((grayscale_value, grayscale_value, grayscale_value))
 
     im_new.putdata(pixels_new)
-    im_new.show()
+    #im_new.show()
     return im_new
 
 def to_squeezenet_vector(image_path):
