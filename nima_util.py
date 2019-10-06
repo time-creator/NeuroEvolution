@@ -9,6 +9,7 @@ import torchvision.models as models
 from model import *
 
 from PIL import Image
+import concurrent.futures
 
 # TODO: Does any of this belong into the function evaluate_images? Find out!
 
@@ -18,9 +19,17 @@ model = NIMA(base_model)
 device = torch.device("cpu")
 
 # path to where the epoch-57.pkl file is located (Pretrained model download)
-model.load_state_dict(torch.load(os.path.join("path to weights/weights", "epoch-57.pkl"), map_location=device))
+model.load_state_dict(torch.load(os.path.join("PATH/weights", "epoch-57.pkl"), map_location=device))
 
 model.eval()
+
+def evaluate_single_mean(vector):
+    output = model(vector)
+    output = output.view(10, 1)
+    predicted_mean, predicted_std = 0.0, 0.0
+    for i, elem in enumerate(output, 1):
+        predicted_mean += i * elem
+    return predicted_mean.item()
 
 def evaluate_images(vector_list):
     """
@@ -48,10 +57,11 @@ def evaluate_images(vector_list):
         std_preds.append(predicted_std.item())
     return mean_preds, std_preds
 
+
 def main():
     # testing on a single image
     # path to image that will get evaluated
-    im = Image.open("path to image")
+    im = Image.open("PATH")
     # only works with resized to 224 images
     resize_maker = transforms.Resize((224, 224))
     im = resize_maker.__call__(img = im)

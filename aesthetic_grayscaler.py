@@ -28,9 +28,9 @@ def _show_results(gen_number, performance_rank, image_path):
     return nimau.evaluate_images([nima_vector]), rgb_vector, result_image
 
 def main():
-    gen_number = 20
+    gen_number = 10
     performance_rank = 0
-    image_path = 'path to image'
+    image_path = 'PATH'
 
     results = _show_results(gen_number, performance_rank, image_path)
 

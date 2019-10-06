@@ -24,7 +24,7 @@ def main():
             )
 
     # sample execution https://pytorch.org/hub/pytorch_vision_squeezenet/
-    input_image = Image.open('path to image')
+    input_image = Image.open('D:/workFolder/NeuroEvolution/images/hill_road.jpg')
     preprocess = transforms.Compose([
         transforms.Resize(256),
         transforms.CenterCrop(224),
