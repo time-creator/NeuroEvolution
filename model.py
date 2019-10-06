@@ -11,7 +11,7 @@ class NIMA(nn.Module):
         self.classifier = nn.Sequential(
             nn.Dropout(p=0.75),
             nn.Linear(in_features=25088, out_features=num_classes),
-            nn.Softmax())
+            nn.Softmax(dim=1))
 
     def forward(self, x):
         out = self.features(x)

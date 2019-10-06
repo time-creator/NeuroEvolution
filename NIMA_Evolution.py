@@ -7,7 +7,9 @@ import image_util as imageu
 import nima_util as nimau
 import squeezenet_util as squeezeu
 from statistics import mean
-from datetime import datetime
+
+import time
+import concurrent.futures
 
 
 def generate_inputs():
@@ -25,11 +27,30 @@ def generate_inputs():
     validate_set = []
 
     # paths to the images in the string
-    for i in range(5, 22): # 5, 22
-        train_set.append(imageu.to_squeezenet_vector(f'path to images'))
+    # t1 = time.perf_counter()
+    # for i in range(5, 22): # 5, 22
+    #     train_set.append(imageu.to_squeezenet_vector(f'PATH'))
+    # for i in range(1, 5): # 1, 5
+    #     validate_set.append(imageu.to_squeezenet_vector(f'PATH'))
+    # t2 = time.perf_counter()
 
-    for i in range(1, 5): # 1, 5
-        validate_set.append(imageu.to_squeezenet_vector(f'path to images'))
+    t1 = time.perf_counter()
+    train_paths = []
+    validate_paths = []
+
+    for i in range(21, 101):
+        train_paths.append(f'PATH')
+    for i in range(1, 21):
+        validate_paths.append(f'PATH')
+
+    with concurrent.futures.ThreadPoolExecutor() as executer:
+        results1 = executer.map(imageu.to_squeezenet_vector, train_paths)
+        train_set = [vector for vector in results1]
+
+        results2 = executer.map(imageu.to_squeezenet_vector, validate_paths)
+        validate_set = [vector for vector in results2]
+    t2 = time.perf_counter()
+    print(f'Finished in {t2 - t1} seconds')
 
     return train_set, validate_set
 
@@ -79,8 +100,20 @@ def fitness(finalconv, inputs):
         nima_vectors.append(imageu.network_and_rgb_to_nima_vector(input, rgb))
 
     # scores is all the mean values returned from nima
-    scores = nimau.evaluate_images(nima_vectors)[0]
+    # t1 = time.perf_counter()
+    # scores = nimau.evaluate_images(nima_vectors)[0]
+    # score = mean(scores)
+    # t2 = time.perf_counter()
+    # print(f'Finished in {t2 - t1} seconds')
+
+    t1 = time.perf_counter()
+    with concurrent.futures.ProcessPoolExecutor() as executer:
+        results1 = executer.map(nimau.evaluate_single_mean, nima_vectors)
+        scores = [result for result in results1]
     score = mean(scores)
+    t2 = time.perf_counter()
+    print(f'Finished NIMA scores in {t2 - t1} seconds')
+
     return score
 
 def evaluate_population(population, inputs):
@@ -96,9 +129,12 @@ def evaluate_population(population, inputs):
         Returns a list of tupels. Each tupel contains the individual at index 0
         and the fitness score at index 1.
     """
+    t1 = time.perf_counter()
     results = []
     for individual in population:
         results.append((individual, fitness(individual, inputs)))
+    t2 = time.perf_counter()
+    print(f'Finished evaluating a population in {t2 - t1} seconds')
     return results
 
 def getNextParents(finalconvs_and_results, keep, type):
@@ -125,13 +161,15 @@ def getNextParents(finalconvs_and_results, keep, type):
 
     # TODO: What kind of distribution is needed?
     if type == 'roulette_wheel':
-        sum_fitness = 0
-        for score in fitness_scores:
-            sum_fitness += score
-        cumulative_fitness_scores = numpy.cumsum(fitness_scores)#.tolist()
-        for i in range(keep):
-            winner = sum_fitness * numpy.random.uniform(0, 1)
-            parent_nets.append(finalconvs_list[numpy.argmax(cumulative_fitness_scores > winner)])
+        # sum_fitness = 0
+        # for score in fitness_scores:
+        #     sum_fitness += score
+        # cumulative_fitness_scores = numpy.cumsum(fitness_scores)
+        # for i in range(keep):
+        #     winner = sum_fitness * numpy.random.uniform(0, 1)
+        #     parent_nets.append(finalconvs_list[numpy.argmax(cumulative_fitness_scores > winner)])
+        #TODO: Might want to turn the weights in as fractions with sum = 1
+        parent_nets.extend(random.choices(finalconvs_list, fitness_scores, k=keep))
 
     elif type == 'rank':
         cumulative_rank = numpy.cumsum(list(range(1, len(finalconvs_list) + 1)))
@@ -202,10 +240,10 @@ def main():
     """
     load_generation = 0
 
-    number_of_generations = 20
-    size_of_population = 10
+    number_of_generations = 10
+    size_of_population = 20
     mutation_rate = 0.05
-    keep = 2
+    keep = 4
     parent_selection_type = 'truncation'
     results = []
 
