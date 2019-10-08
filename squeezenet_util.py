@@ -40,6 +40,17 @@ def main():
     print(output[0])
     print(torch.nn.functional.softmax(output[0], dim=0))
 
+# If needed!
+# def run_squeezenet(images):
+#     output = []
+#
+#     with torch.no_grad():
+#         for image_vector in images:
+#             output_value = squeezynet(image_vector)
+#             output.append(output_value[0]) #append(torch.nn.functional.softmax(output_value[0], dim=0))
+#
+#     return output
+
 def run_and_get_values(final_conv, images):
     """
     Args:
