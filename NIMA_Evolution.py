@@ -1,6 +1,7 @@
 import numpy
 import torch
 import torch.nn as nn
+import random
 import copy
 import save_util as saveu
 import image_util as imageu
@@ -29,9 +30,9 @@ def generate_inputs():
     # paths to the images in the string
     # t1 = time.perf_counter()
     # for i in range(5, 22): # 5, 22
-    #     train_set.append(imageu.to_squeezenet_vector(f'PATH'))
+    #     train_set.append(imageu.to_squeezenet_vector(f'D:/workFolder/NeuroEvolution/dataset/trainImage({i}).jpg'))
     # for i in range(1, 5): # 1, 5
-    #     validate_set.append(imageu.to_squeezenet_vector(f'PATH'))
+    #     validate_set.append(imageu.to_squeezenet_vector(f'D:/workFolder/NeuroEvolution/dataset/trainImage({i}).jpg'))
     # t2 = time.perf_counter()
 
     t1 = time.perf_counter()
@@ -39,9 +40,9 @@ def generate_inputs():
     validate_paths = []
 
     for i in range(2, 5): # 21, 101
-        train_paths.append(f'PATH')
+        train_paths.append(f'D:/workFolder/NeuroEvoSqueeze/dataset/dataset({i}).jpg')
     for i in range(1, 2): # 1, 21
-        validate_paths.append(f'PATH')
+        validate_paths.append(f'D:/workFolder/NeuroEvoSqueeze/dataset/dataset({i}).jpg')
 
     with concurrent.futures.ThreadPoolExecutor() as executer:
         results1 = executer.map(imageu.to_squeezenet_vector, train_paths)
@@ -200,14 +201,35 @@ def getNextParents(finalconvs_and_results, keep, type):
         # for i in range(keep):
         #     winner = numpy.random.randint(0, numpy.sum(pieces_per_rank))
         #     parent_nets.append(finalconvs_list[numpy.argmax(cumulative_rank > winner)])
-        # ranks = [x + 1 for x in reversed(range(len(finalconvs_list)))]
+        ranks = [x + 1 for x in reversed(range(len(finalconvs_list)))]
         parent_nets.extend(random.choices(finalconvs_list, ranks, k=keep))
 
     elif type == 'truncation':
         parent_nets = [i[0] for i in finalconvs_and_results[:keep]]
 
-    elif type == 'tournament':
-        group_size = len(fitness_scores) / keep
+    #TODO: condense tournament elifs
+    elif type == 'tournament-replacement':
+        group_size = int(len(fitness_scores) / keep)
+        participant_ids = [x for x in range(len(fitness_scores))]
+        participants = [(id, score) for id, score in zip(participant_ids, fitness_scores)]
+        while len(parent_nets) < keep:
+            random.shuffle(participants)
+            competing = random.choices(participants, k=group_size)
+            competing.sort(key=lambda x: x[1], reverse=True)
+            parent_nets.append(finalconvs_list[competing[0][0]])
+
+    elif type == 'tournament': #with replacement per group, groupsize changeable
+        group_size = int(len(fitness_scores) / keep)
+        participant_ids = [x for x in range(len(fitness_scores))]
+        participants = [(id, score) for id, score in zip(participant_ids, fitness_scores)]
+        while len(parent_nets) < keep:
+            random.shuffle(participants)
+            competing = participants[:group_size]
+            competing.sort(key=lambda x: x[1], reverse=True)
+            parent_nets.append(finalconvs_list[competing[0][0]])
+
+    elif type == 'tournament1': #without replacement per group, groupsize changeable
+        group_size = int(len(fitness_scores) / keep)
         groups = [[] for i in range(keep)]
         participant_ids = [x for x in range(len(fitness_scores))] #list(range(value))
         participants = [(id, score) for id, score in zip(participant_ids, fitness_scores)]
@@ -220,7 +242,7 @@ def getNextParents(finalconvs_and_results, keep, type):
         #this is exactly what tournament does, but way shorter
         for group in groups:
             group.sort(key=lambda x: x[1], reverse=True)
-            parent_nets.append(group[0])
+            parent_nets.append(finalconvs_list[group[0][0]])
         # each group now has its tournament
         # for group in groups:
         #     group_winners = run_tournament(group)
@@ -286,11 +308,11 @@ def main():
     """
     load_generation = 0
 
-    number_of_generations = 0
+    number_of_generations = 1
     size_of_population = 4
     mutation_rate = 0.05
     keep = 2
-    parent_selection_type = 'roulette'
+    parent_selection_type = 'tournament1'
     results = []
 
     total_generations = number_of_generations + load_generation
