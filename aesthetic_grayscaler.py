@@ -11,7 +11,7 @@ dir_path = os.path.dirname(os.path.realpath(__file__))
 
 def _load_layer(gen_number, performance_rank):
     layer = nn.Conv2d(512, 3, kernel_size=1)
-    layer.weight.data = torch.load(Path(dir_path + f'\\generations\\gen{gen_number}\\weights{performance_rank}.pt'))
+    layer.weight.data = torch.load(Path(dir_path + f'\\output\\generations\\gen{gen_number}\\weights{performance_rank}.pt'))
     return layer
 
 def _load_image(image_path):
@@ -30,7 +30,7 @@ def _show_results(gen_number, performance_rank, image_path):
 def main():
     gen_number = 10
     performance_rank = 0
-    image_path = 'PATH'
+    image_path = dir_path + '\\dataset\\dataset(47).jpg'
 
     results = _show_results(gen_number, performance_rank, image_path)
 

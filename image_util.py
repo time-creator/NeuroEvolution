@@ -68,7 +68,7 @@ def to_selfmade_grayscale(image_path, r_value, g_value, b_value):
         for j in range(im.size[1]):
             grayscale_value = int(np.sum(np.multiply(list(pixels[i, j]), [r_value, g_value, b_value])))
             pixels[i, j] = (grayscale_value, grayscale_value, grayscale_value)
-    new_image_path = Path(dir_path + f"\\result_images\\a0096_{int(r_value * 1000)}_{int(g_value * 1000)}_{int(b_value * 1000)}.jpg")
+    new_image_path = Path(dir_path + f"\\output\\result_images\\a0096_{int(r_value * 1000)}_{int(g_value * 1000)}_{int(b_value * 1000)}.jpg")
     im.save(new_image_path)
 
 def to_lightness_grayscale(image_path):
@@ -86,7 +86,7 @@ def to_lightness_grayscale(image_path):
         for j in range(im.size[1]):
             grayscale_value = int((max(pixels[i, j]) + min(pixels[i, j])) / 2)
             pixels[i, j] = (grayscale_value, grayscale_value, grayscale_value)
-    new_image_path = Path(dir_path + f"\\result_images\\a0096_lightness.jpg")
+    new_image_path = Path(dir_path + f"\\output\\result_images\\a0096_lightness.jpg")
     im.save(new_image_path)
 
 # 224 is size of evo net and nima net (evo = squeezenet now)

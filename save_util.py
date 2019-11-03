@@ -13,7 +13,7 @@ def save_results(results):
     # TODO: save Generation, and some other useful information in that file too
 
     # path and name of the new file
-    new_csv_path = Path(dir_path + f"\\results\\results_{str(datetime.now())[:-7].replace(' ', '_').replace(':', '-')}.csv")
+    new_csv_path = Path(dir_path + f"\\output\\results\\results_{str(datetime.now())[:-7].replace(' ', '_').replace(':', '-')}.csv")
 
     with open(new_csv_path, 'w') as new_results:
         csv_writer = csv.writer(new_results, delimiter=',')
@@ -30,13 +30,13 @@ def save_results(results):
         csv_writer.writerows(results)
 
 def save_generation(generation, number):
-    if not os.path.exists(Path(dir_path + f'\\generations\\gen{number}')):
-        os.mkdir(Path(dir_path + f'\\generations\\gen{number}'))
+    if not os.path.exists(Path(dir_path + f'\\output\\generations\\gen{number}')):
+        os.mkdir(Path(dir_path + f'\\output\\generations\\gen{number}'))
     else:
         print('There already is a file with weights to the current generation! \nWeights will get overwritten!')
 
     for count, individual in enumerate(generation):
-        weights_path = Path(dir_path + f'\\generations\\gen{number}\\weights{count}.pt')
+        weights_path = Path(dir_path + f'\\output\\generations\\gen{number}\\weights{count}.pt')
         torch.save(individual.weight.data, weights_path)
 
 def load_generation(gen_number, size):
@@ -46,6 +46,9 @@ def load_generation(gen_number, size):
         generation.append(nn.Conv2d(512, 3, kernel_size=1))
 
     for count, individual in enumerate(generation):
-        individual.weight.data = torch.load(Path(dir_path + f'\\generations\\gen{gen_number}\\weights{count}.pt'))
+        individual.weight.data = torch.load(Path(dir_path + f'\\output\\generations\\gen{gen_number}\\weights{count}.pt'))
 
     return generation
+
+if __name__ == '__main__':
+    print(dir_path)

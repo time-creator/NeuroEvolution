@@ -2,6 +2,7 @@ import numpy
 import torch
 import torch.nn as nn
 import random
+import os
 import copy
 import save_util as saveu
 import image_util as imageu
@@ -12,6 +13,7 @@ from statistics import mean
 import time
 import concurrent.futures
 
+dir_path = os.path.dirname(os.path.realpath(__file__))
 
 def generate_inputs():
     """
@@ -27,22 +29,14 @@ def generate_inputs():
     train_set = []
     validate_set = []
 
-    # paths to the images in the string
-    # t1 = time.perf_counter()
-    # for i in range(5, 22): # 5, 22
-    #     train_set.append(imageu.to_squeezenet_vector(f'D:/workFolder/NeuroEvolution/dataset/trainImage({i}).jpg'))
-    # for i in range(1, 5): # 1, 5
-    #     validate_set.append(imageu.to_squeezenet_vector(f'D:/workFolder/NeuroEvolution/dataset/trainImage({i}).jpg'))
-    # t2 = time.perf_counter()
-
-    t1 = time.perf_counter()
     train_paths = []
     validate_paths = []
 
-    for i in range(2, 5): # 21, 101
-        train_paths.append(f'D:/workFolder/NeuroEvoSqueeze/dataset/dataset({i}).jpg')
-    for i in range(1, 2): # 1, 21
-        validate_paths.append(f'D:/workFolder/NeuroEvoSqueeze/dataset/dataset({i}).jpg')
+    for i in range(1001, 5001):
+        if (i != 2015) and (i != 2746):
+            train_paths.append(dir_path + f'\\dataset\\dataset({i}).jpg')
+    for i in range(1, 1001):
+        validate_paths.append(dir_path + f'\\dataset\\dataset({i}).jpg')
 
     with concurrent.futures.ThreadPoolExecutor() as executer:
         results1 = executer.map(imageu.to_squeezenet_vector, train_paths)
@@ -50,8 +44,6 @@ def generate_inputs():
 
         results2 = executer.map(imageu.to_squeezenet_vector, validate_paths)
         validate_set = [vector for vector in results2]
-    t2 = time.perf_counter()
-    print(f'Finished in {t2 - t1} seconds')
 
     return train_set, validate_set
 
@@ -71,6 +63,12 @@ def populate(population_size):
     population = []
     for i in range(population_size):
         population.append(nn.Conv2d(512, 3, kernel_size=1))
+
+    # initialise own weight values
+    for indiv in population:
+        initial_value = numpy.random.randn(*indiv.weight.data.size()).astype(numpy.float32)
+        initial_value_tensor = torch.from_numpy(initial_value)
+        indiv.weight.data = initial_value_tensor
     return population
 
 # this function takes the longest (the more pictures the longer)
@@ -94,26 +92,15 @@ def fitness(finalconv, inputs):
     scores = []
 
     rgbs = squeezeu.run_and_get_values(finalconv, inputs)
-
     # nima_vectors is a list of all input images in grayscale in nima input size
     nima_vectors = []
     for input, rgb in zip(inputs, rgbs):
         nima_vectors.append(imageu.network_and_rgb_to_nima_vector(input, rgb))
 
-    # scores is all the mean values returned from nima
-    # t1 = time.perf_counter()
-    # scores = nimau.evaluate_images(nima_vectors)[0]
-    # score = mean(scores)
-    # t2 = time.perf_counter()
-    # print(f'Finished in {t2 - t1} seconds')
-
-    t1 = time.perf_counter()
     with concurrent.futures.ProcessPoolExecutor() as executer:
         results1 = executer.map(nimau.evaluate_single_mean, nima_vectors)
         scores = [result for result in results1]
     score = mean(scores)
-    t2 = time.perf_counter()
-    print(f'Finished NIMA scores in {t2 - t1} seconds')
 
     return score
 
@@ -130,21 +117,12 @@ def evaluate_population(population, inputs):
         Returns a list of tupels. Each tupel contains the individual at index 0
         and the fitness score at index 1.
     """
-    t1 = time.perf_counter()
+
     results = []
     for individual in population:
         results.append((individual, fitness(individual, inputs)))
-    t2 = time.perf_counter()
-    print(f'Finished evaluating a population in {t2 - t1} seconds')
-    return results
 
-# Helper method for getNextParents
-# def run_tournament(group):
-#     if len(group) % 2 != 0:
-#         group.append((0, 0))
-#     winners = [i if i[1] > j[1] else j for i, j in zip(group[0::2], group[1::2])]
-#     random.shuffle(winners)
-#     return winners
+    return results
 
 def getNextParents(finalconvs_and_results, keep, type):
     """
@@ -168,13 +146,6 @@ def getNextParents(finalconvs_and_results, keep, type):
     fitness_scores = [i[1] for i in finalconvs_and_results]
 
     if type == 'roulette':
-        # sum_fitness = 0
-        # for score in fitness_scores:
-        #     sum_fitness += score
-        # cumulative_fitness_scores = numpy.cumsum(fitness_scores)
-        # for i in range(keep):
-        #     winner = sum_fitness * numpy.random.uniform(0, 1)
-        #     parent_nets.append(finalconvs_list[numpy.argmax(cumulative_fitness_scores > winner)])
         #TODO: Might want to turn the weights in as fractions with sum = 1
         parent_nets.extend(random.choices(finalconvs_list, fitness_scores, k=keep))
 
@@ -195,21 +166,15 @@ def getNextParents(finalconvs_and_results, keep, type):
                     break
 
     elif type == 'rank':
-        # cumulative_rank = numpy.cumsum(list(range(1, len(finalconvs_list) + 1)))
-        # pieces_per_rank = cumulative_rank[::-1]
-        # cumulative_rank = numpy.cumsum(cumulative_rank[::-1])
-        # for i in range(keep):
-        #     winner = numpy.random.randint(0, numpy.sum(pieces_per_rank))
-        #     parent_nets.append(finalconvs_list[numpy.argmax(cumulative_rank > winner)])
         ranks = [x + 1 for x in reversed(range(len(finalconvs_list)))]
         parent_nets.extend(random.choices(finalconvs_list, ranks, k=keep))
 
     elif type == 'truncation':
         parent_nets = [i[0] for i in finalconvs_and_results[:keep]]
 
-    #TODO: condense tournament elifs
-    elif type == 'tournament-replacement':
-        group_size = int(len(fitness_scores) / keep)
+    # for all tournament selection variants keep should be 2 or greater!
+    elif type == 'tournament-replacement': # with replacement
+        group_size = 5
         participant_ids = [x for x in range(len(fitness_scores))]
         participants = [(id, score) for id, score in zip(participant_ids, fitness_scores)]
         while len(parent_nets) < keep:
@@ -218,7 +183,7 @@ def getNextParents(finalconvs_and_results, keep, type):
             competing.sort(key=lambda x: x[1], reverse=True)
             parent_nets.append(finalconvs_list[competing[0][0]])
 
-    elif type == 'tournament': #with replacement per group, groupsize changeable
+    elif type == 'tournament': #without replacement per group
         group_size = int(len(fitness_scores) / keep)
         participant_ids = [x for x in range(len(fitness_scores))]
         participants = [(id, score) for id, score in zip(participant_ids, fitness_scores)]
@@ -228,33 +193,11 @@ def getNextParents(finalconvs_and_results, keep, type):
             competing.sort(key=lambda x: x[1], reverse=True)
             parent_nets.append(finalconvs_list[competing[0][0]])
 
-    elif type == 'tournament1': #without replacement per group, groupsize changeable
-        group_size = int(len(fitness_scores) / keep)
-        groups = [[] for i in range(keep)]
-        participant_ids = [x for x in range(len(fitness_scores))] #list(range(value))
-        participants = [(id, score) for id, score in zip(participant_ids, fitness_scores)]
-        random.shuffle(participants)
-
-        # we use the fact that keep is a divider of the size of the population
-        for i in range(keep):
-            groups[i] = participants[i * group_size:(i + 1) * group_size] # = instead of append()
-
-        #this is exactly what tournament does, but way shorter
-        for group in groups:
-            group.sort(key=lambda x: x[1], reverse=True)
-            parent_nets.append(finalconvs_list[group[0][0]])
-        # each group now has its tournament
-        # for group in groups:
-        #     group_winners = run_tournament(group)
-        #     while len(group_winners) != 1:
-        #         group_winners = run_tournament(group_winners)
-        #     parent_nets.extend(group_winners) # not append because of return type
-
     else:
         raise Exception("No method of parent selection was given.")
     return parent_nets
 
-def evolve(population_and_results, mutation_rate=0.07, keep=10, type='truncation'):
+def evolve(population_and_results, uses_elitism, mutation_rate=0.07, keep=10, type='truncation'):
     """
     This function evolves a given population to a new one.
 
@@ -273,6 +216,8 @@ def evolve(population_and_results, mutation_rate=0.07, keep=10, type='truncation
     # sort after fitness scores
     finalconvs_and_results.sort(key=lambda x: x[1], reverse = True)
 
+    best_finalconv = finalconvs_and_results[0][0]
+
     size = len(finalconvs_and_results)
 
     new_finalconvs = getNextParents(finalconvs_and_results, keep=keep, type=type)
@@ -285,6 +230,9 @@ def evolve(population_and_results, mutation_rate=0.07, keep=10, type='truncation
 
     while len(new_finalconvs) < size:
         new_finalconvs.extend(copy.deepcopy(filler))
+
+    if uses_elitism:
+        new_finalconvs[-1] = best_finalconv
 
     """ After that we mutate the fittest individuals/new population """
     for convlayer in new_finalconvs:
@@ -308,11 +256,12 @@ def main():
     """
     load_generation = 0
 
-    number_of_generations = 1
-    size_of_population = 4
-    mutation_rate = 0.05
-    keep = 2
-    parent_selection_type = 'tournament1'
+    number_of_generations = 1000
+    size_of_population = 100
+    mutation_rate = 0.005
+    keep = 5
+    parent_selection_type = 'tournament-replacement'
+    elitism = False
     results = []
 
     total_generations = number_of_generations + load_generation
@@ -340,7 +289,7 @@ def main():
         else:
             # we need to evolve first if it's not the initial generation
             # the evolve turns the gen into the gen + 1 i.e. the new gen
-            gen_i = evolve(gen_i_eval, mutation_rate=mutation_rate, keep=keep, type=parent_selection_type)
+            gen_i = evolve(gen_i_eval, uses_elitism=elitism, mutation_rate=mutation_rate, keep=keep, type=parent_selection_type)
 
             gen_i_eval = evaluate_population(gen_i, train_inputs)
             gen_i_fitness_list = sorted([x[1] for x in gen_i_eval], reverse=True)
@@ -351,8 +300,8 @@ def main():
         gen_i_eval_result.append(mean(gen_i_fitness_list)) # Average
         results.append(gen_i_eval_result)
 
-        # if i == save_generation:
-        #     saveu.save_generation(gen_i, i)
+        # save each generation
+        saveu.save_generation(gen_i, i)
 
         if i == total_generations: # gens to test on vali
             gen_i_vali_eval = evaluate_population(gen_i, validate_inputs)
@@ -370,6 +319,7 @@ def main():
 
     # save the results
     """ for when you want to save stuff #saveu.save_results(results) """
+    saveu.save_results(results)
     # TODO: Save more information into the result
     # e.g. Average, Information on mutation rate, pop size, keep, number of generations
 

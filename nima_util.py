@@ -13,13 +13,17 @@ import concurrent.futures
 
 # TODO: Does any of this belong into the function evaluate_images? Find out!
 
+import time
+
+dir_path = os.path.dirname(os.path.realpath(__file__))
+
 base_model = models.vgg16(pretrained=True)
 model = NIMA(base_model)
 
 device = torch.device("cpu")
 
 # path to where the epoch-57.pkl file is located (Pretrained model download)
-model.load_state_dict(torch.load(os.path.join("PATH/weights", "epoch-57.pkl"), map_location=device))
+model.load_state_dict(torch.load(os.path.join(dir_path, "weights", "epoch-57.pkl"), map_location=device))
 
 model.eval()
 
@@ -61,7 +65,7 @@ def evaluate_images(vector_list):
 def main():
     # testing on a single image
     # path to image that will get evaluated
-    im = Image.open("PATH")
+    im = Image.open(dir_path + "\\dataset\\dataset(1).jpg")
     # only works with resized to 224 images
     resize_maker = transforms.Resize((224, 224))
     im = resize_maker.__call__(img = im)
@@ -72,19 +76,23 @@ def main():
     im_tensor = im_tensor.unsqueeze_(0)
     print(im_tensor.size())
 
+    batch_im_tensor = torch.cat((im_tensor, im_tensor, im_tensor), 0)
+    print(batch_im_tensor.size())
+
     # single image:
-    mean_preds = []
-    std_preds = []
-    output = model(im_tensor)
-    output = output.view(10, 1)
-    predicted_mean, predicted_std = 0.0, 0.0
-    for i, elem in enumerate(output, 1):
-        predicted_mean += i * elem
-    for j, elem in enumerate(output, 1):
-        predicted_std += elem * (j - predicted_mean) ** 2
-    mean_preds.append(predicted_mean.item())
-    std_preds.append(predicted_std.item())
-    print(mean_preds, std_preds)
+    with torch.no_grad():
+        mean_preds = []
+        std_preds = []
+        output = model(batch_im_tensor)
+        output = output.view(10, 1)
+        predicted_mean, predicted_std = 0.0, 0.0
+        for i, elem in enumerate(output, 1):
+            predicted_mean += i * elem
+        for j, elem in enumerate(output, 1):
+            predicted_std += elem * (j - predicted_mean) ** 2
+        mean_preds.append(predicted_mean.item())
+        std_preds.append(predicted_std.item())
+        print(mean_preds, std_preds)
 
 if __name__ == '__main__':
     main()

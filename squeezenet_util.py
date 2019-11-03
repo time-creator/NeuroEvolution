@@ -3,11 +3,14 @@ from torchvision import transforms
 import torch
 import torch.nn as nn
 from PIL import Image
+import os
+
+dir_path = os.path.dirname(os.path.realpath(__file__))
 
 squeezynet = models.squeezenet1_1(pretrained=True)
 
 # this vs with torch.no_grad()
-#squeezynet.eval()
+squeezynet.eval()
 
 # change layers https://pytorch.org/docs/master/notes/autograd.html
 for param in squeezynet.parameters():
@@ -24,7 +27,7 @@ def main():
             )
 
     # sample execution https://pytorch.org/hub/pytorch_vision_squeezenet/
-    input_image = Image.open('D:/workFolder/NeuroEvolution/images/hill_road.jpg')
+    input_image = Image.open(dir_path + '\\dataset\\dataset(1).jpg')
     preprocess = transforms.Compose([
         transforms.Resize(256),
         transforms.CenterCrop(224),
@@ -40,16 +43,6 @@ def main():
     print(output[0])
     print(torch.nn.functional.softmax(output[0], dim=0))
 
-# If needed!
-# def run_squeezenet(images):
-#     output = []
-#
-#     with torch.no_grad():
-#         for image_vector in images:
-#             output_value = squeezynet(image_vector)
-#             output.append(output_value[0]) #append(torch.nn.functional.softmax(output_value[0], dim=0))
-#
-#     return output
 
 def run_and_get_values(final_conv, images):
     """
