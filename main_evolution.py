@@ -279,7 +279,7 @@ def main():
     gen_i_eval = []
     gen_i_fitness_list = []
 
-    for i in range(total_generations + 1): # number of generations + initial pop
+    for i in range(load_generation, total_generations + 1): # number of generations + initial pop
 
         if i == load_generation:
             # initial generation only has to get evaluated
@@ -301,27 +301,26 @@ def main():
         results.append(gen_i_eval_result)
 
         # save each generation
-        saveu.save_generation(gen_i, i)
+        if i != load_generation:
+            gen_i_eval.sort(key=lambda x: x[1], reverse=True)
+            saveu.save_generation([x[0] for x in gen_i_eval], i)
 
-        if i == total_generations: # gens to test on vali
+        if i == total_generations or total_generations % 50 == 0: # gens to test on vali
             gen_i_vali_eval = evaluate_population(gen_i, validate_inputs)
             gen_i_vali_fitness_list = sorted([x[1] for x in gen_i_vali_eval], reverse=True)
             print(f"Validation Gen {i}: {gen_i_vali_fitness_list}")
 
             # TODO: add back later: gen_i_vali_result = [f'Validation Gen {i}']
-            gen_i_vali_result = [-1]
+            gen_i_vali_result = [-1 * i]
             gen_i_vali_result.extend(gen_i_vali_fitness_list)
             gen_i_vali_result.append(mean(gen_i_vali_fitness_list))
             results.append(gen_i_vali_result)
             # ..._result is the string ready to add, the non ..._result version is the actual result list
 
-            # save / show result image(s)
 
     # save the results
     """ for when you want to save stuff #saveu.save_results(results) """
     saveu.save_results(results)
-    # TODO: Save more information into the result
-    # e.g. Average, Information on mutation rate, pop size, keep, number of generations
 
 if __name__ == '__main__':
     main()

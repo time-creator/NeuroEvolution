@@ -28,7 +28,7 @@ def _show_results(gen_number, performance_rank, image_path):
     return nimau.evaluate_images([nima_vector]), rgb_vector, result_image
 
 def main():
-    gen_number = 10
+    gen_number = 1
     performance_rank = 0
     image_path = dir_path + '\\dataset\\dataset(47).jpg'
 
