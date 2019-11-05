@@ -181,7 +181,7 @@ def getNextParents(finalconvs_and_results, keep, type):
             random.shuffle(participants)
             competing = random.choices(participants, k=group_size)
             competing.sort(key=lambda x: x[1], reverse=True)
-            parent_nets.append(finalconvs_list[competing[0][0]])
+            parent_nets.append(copy.deepcopy(finalconvs_list[competing[0][0]]))
 
     elif type == 'tournament': #without replacement per group
         group_size = int(len(fitness_scores) / keep)
@@ -191,7 +191,7 @@ def getNextParents(finalconvs_and_results, keep, type):
             random.shuffle(participants)
             competing = participants[:group_size]
             competing.sort(key=lambda x: x[1], reverse=True)
-            parent_nets.append(finalconvs_list[competing[0][0]])
+            parent_nets.append(copy.deepcopy(finalconvs_list[competing[0][0]]))
 
     else:
         raise Exception("No method of parent selection was given.")
